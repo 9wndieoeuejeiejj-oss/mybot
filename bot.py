@@ -18,16 +18,31 @@ while True:
             if "message" not in update:
                 continue
 
-            chat_id = update["message"]["chat"]["id"]
+            message = update["message"]
 
-            if "reply_to_message" in update["message"]:
-                requests.post(
-                    f"{URL}/sendMessage",
-                    json={
-                        "chat_id": chat_id,
-                        "text": "سلام 😊"
-                    }
-                )
+            # فقط گروه‌ها
+            chat_type = message["chat"]["type"]
+            if chat_type == "private":
+                continue
+
+            text = message.get("text", "")
+            chat_id = message["chat"]["id"]
+
+            # اگر پیام ریپلای بود
+            if "reply_to_message" in message:
+                reply_msg = message["reply_to_message"]
+
+                # اگر روی پیام خود ربات ریپلای شده
+                if "from" in reply_msg and reply_msg["from"].get("is_bot", False):
+
+                    if text == "سلام":
+                        requests.post(
+                            f"{URL}/sendMessage",
+                            json={
+                                "chat_id": chat_id,
+                                "text": "سلام 😊"
+                            }
+                        )
 
         time.sleep(1)
 
