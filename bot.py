@@ -1,7 +1,7 @@
 import requests
 import time
 
-TOKEN = "توکن_ربات_خودت"
+TOKEN = "715460300:CiPzvD38I1kbZ6yMJxu-Kiu2nz8FYcFljjM"
 
 URL = f"https://tapi.bale.ai/bot{TOKEN}"
 
