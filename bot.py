@@ -1,56 +1,54 @@
 import requests
 import time
-import re
 
 TOKEN = "715460300:CiPzvD38I1kbZ6yMJxu-Kiu2nz8FYcFljjM"
 
-URL = f"https://tapi.bale.ai/bot{TOKEN}/"
+BASE_URL = f"https://tapi.bale.ai/bot{TOKEN}/"
 
 offset = 0
 
-link_pattern = re.compile(
-    r"(https?://\S+|www\.\S+|t\.me/\S+|bale\.ai/\S+)",
-    re.IGNORECASE
-)
-
 def send_message(chat_id, text):
     requests.post(
-        URL + "sendMessage",
-        json={
-            "chat_id": chat_id,
-            "text": text
-        }
+        BASE_URL + "sendMessage",
+        json={"chat_id": chat_id, "text": text}
     )
 
 while True:
     try:
-        response = requests.get(URL + "getUpdates", params={"offset": offset})
-        updates = response.json()["result"]
+        response = requests.get(
+            BASE_URL + "getUpdates",
+            params={"offset": offset},
+            timeout=30
+        )
 
-        for update in updates:
+        data = response.json()
+
+        for update in data.get("result", []):
             offset = update["update_id"] + 1
 
-            if "message" not in update:
+            message = update.get("message", {})
+            text = message.get("text", "")
+            chat_id = message.get("chat", {}).get("id")
+
+            if not chat_id:
                 continue
-
-            message = update["message"]
-
-            if "text" not in message:
-                continue
-
-            text = message["text"]
-            chat_id = message["chat"]["id"]
 
             # پاسخ به سلام
             if text.strip() == "سلام":
                 send_message(chat_id, "سلام")
 
-            # تشخیص لینک
-            if link_pattern.search(text):
-                send_message(chat_id, "لطفاً در گروه لینک نفرستید.")
+            # اخطار برای لینک
+            if (
+                "http://" in text or
+                "https://" in text or
+                "www." in text or
+                "t.me/" in text or
+                "bale.ai/" in text
+            ):
+                send_message(chat_id, "⚠️ لطفاً لینک ارسال نکنید.")
 
         time.sleep(1)
 
     except Exception as e:
-        print("خطا:", e)
+        print("ERROR:", e)
         time.sleep(5)
