@@ -5,47 +5,62 @@ TOKEN = "715460300:CiPzvD38I1kbZ6yMJxu-Kiu2nz8FYcFljjM"
 
 BASE_URL = f"https://tapi.bale.ai/bot{TOKEN}/"
 
-offset = 0
+offset = None
 
 def send_message(chat_id, text):
     requests.post(
         BASE_URL + "sendMessage",
-        json={"chat_id": chat_id, "text": text}
+        json={"chat_id": chat_id, "text": text},
+        timeout=10
     )
 
 while True:
     try:
+        params = {}
+
+        if offset is not None:
+            params["offset"] = offset
+
         response = requests.get(
             BASE_URL + "getUpdates",
-            params={"offset": offset},
+            params=params,
             timeout=30
         )
 
         data = response.json()
 
         for update in data.get("result", []):
+
             offset = update["update_id"] + 1
 
-            message = update.get("message", {})
-            text = message.get("text", "")
+            if "message" not in update:
+                continue
+
+            message = update["message"]
+            text = str(message.get("text", "")).strip()
             chat_id = message.get("chat", {}).get("id")
 
             if not chat_id:
                 continue
 
             # پاسخ به سلام
-            if text.strip() == "سلام":
+            if text == "سلام":
                 send_message(chat_id, "سلام")
 
-            # اخطار برای لینک
+            # تشخیص لینک
+            text_lower = text.lower()
+
             if (
-                "http://" in text or
-                "https://" in text or
-                "www." in text or
-                "t.me/" in text or
-                "bale.ai/" in text
+                "http://" in text_lower or
+                "https://" in text_lower or
+                "www." in text_lower or
+                "t.me/" in text_lower or
+                "bale.ai/" in text_lower
             ):
-                send_message(chat_id, "⚠️ لطفاً لینک ارسال نکنید.")
+                send_message(
+                    chat_id,
+                    "⚠️ لطفاً لینک ارسال نکنید."
+                )
 
         time.sleep(1)
 
