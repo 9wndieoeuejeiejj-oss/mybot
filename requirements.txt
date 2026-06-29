@@ -1,1 +1,1 @@
-requests
+python-bale-bot==2.8.0
