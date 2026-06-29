@@ -4,7 +4,7 @@ import time
 from bale import Bot, Message, ChatMember
 import os
 
-TOKEN = os.getenv"715460300:CiPzvD38I1kbZ6yMJxu-Kiu2nz8FYcFljjM"
+TOKEN ="715460300:CiPzvD38I1kbZ6yMJxu-Kiu2nz8FYcFljjM"
 bot = Bot(TOKEN)
 
 user_activity = {}
