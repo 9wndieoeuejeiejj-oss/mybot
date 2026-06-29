@@ -82,3 +82,4 @@ async def handle_commands(message: Message):
 if __name__ == "__main__":
     print("ربات در حال اجراست...")
     bot.run()
+ 
