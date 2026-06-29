@@ -1,130 +1,64 @@
 import asyncio
 import re
-import time
-from bale import Bot, Message, ChatMember
+from bale import Bot, Message
 import os
 
 TOKEN = "715460300:CiPzvD38I1kbZ6yMJxu-KiuZ"
 bot = Bot(TOKEN)
 
-# لیست کلمات فحش (خودت میتونی بیشتر کنی)
-BAD_WORDS = ["فحش", "کشک", "کصخل", "کونی", "گوه"]
+# =============================================
+# تابع بررسی وجود @ در متن پیام
+# =============================================
+def contains_mention(text: str) -> bool:
+    # الگوی @username (حداقل ۳ کاراکتر بعد از @)
+    pattern = r'@[A-Za-z0-9_]{3,}'
+    return bool(re.search(pattern, text))
 
-# تنظیمات اسپم
-SPAM_TIME_LIMIT = 5  # چند ثانیه
-SPAM_MESSAGE_LIMIT = 5  # چند پیام مجاز
-
-# ذخیره فعالیت کاربرا
-user_activity = {}
-
-# ============================================
-# ✅ تشخیص لینک (حرفه‌ای)
-# ============================================
-def contains_link(text):
-    if not text:
-        return False
-    # این الگو همه لینک‌ها رو تشخیص میده
-    url_pattern = r'(https?://[^\s]+|www\.[^\s]+|[^\s]+\.(com|org|ir|net|info|io|co))'
-    return bool(re.search(url_pattern, text, re.IGNORECASE))
-
-# ============================================
-# ✅ تشخیص فحش
-# ============================================
-def contains_bad_word(text):
-    if not text:
-        return False
-    for word in BAD_WORDS:
-        if word in text:
-            return True
-    return False
-
-# ============================================
-# ✅ تشخیص اسپم
-# ============================================
-def is_spam(user_id):
-    now = time.time()
-    if user_id not in user_activity:
-        user_activity[user_id] = []
-    # حذف زمان‌های قدیمی
-    user_activity[user_id] = [t for t in user_activity[user_id] if now - t < SPAM_TIME_LIMIT]
-    # اضافه کردن پیام جدید
-    user_activity[user_id].append(now)
-    return len(user_activity[user_id]) > SPAM_MESSAGE_LIMIT
-
-# ============================================
-# ✅ هندلر پیام‌ها
-# ============================================
+# =============================================
+# وقتی ربات آماده شد
+# =============================================
 @bot.event
 async def on_ready():
-    print(f"ربات {bot.user.username} آنلاین شد!")
+    print(f"ربات {bot.user.username} آماده شد!")
 
+# =============================================
+# وقتی پیامی در گروه ارسال میشود
+# =============================================
 @bot.event
 async def on_message(message: Message):
+    # فقط پیام‌های گروهی را بررسی کن
+    if not message.chat:
+        return
+
     chat_id = message.chat.id
     user_id = message.author.id
     text = message.content or ""
 
-    # 🔹 دستورات
-    if text.startswith("/"):
-        await handle_commands(message)
-        return
-
-    # 🔹 حذف لینک
-    if contains_link(text):
-        await bot.delete_message(chat_id, message.id)
-        msg = await bot.send_message(chat_id, f"@{message.author.username} ❌ ارسال لینک ممنوع!")
-        await asyncio.sleep(2)
-        await bot.delete_message(chat_id, msg.id)
-        return
-
-    # 🔹 حذف فحش
-    if contains_bad_word(text):
-        await bot.delete_message(chat_id, message.id)
-        msg = await bot.send_message(chat_id, f"@{message.author.username} 🚫 ادب رو رعایت کن!")
-        await asyncio.sleep(2)
-        await bot.delete_message(chat_id, msg.id)
-        return
-
-    # 🔹 تشخیص اسپم
-    if is_spam(user_id):
-        await bot.delete_message(chat_id, message.id)
-        msg = await bot.send_message(chat_id, f"@{message.author.username} ⛔ اسپم نکن!")
-        await asyncio.sleep(2)
-        await bot.delete_message(chat_id, msg.id)
-        return
-
-# ============================================
-# ✅ خوش‌آمدگویی و خداحافظی
-# ============================================
-@bot.event
-async def on_member_chat_join(member: ChatMember, chat_id: int):
-    await bot.send_message(chat_id, f"🎉 به گروه خوش آمدی @{member.user.username}!")
-
-@bot.event
-async def on_member_chat_leave(member: ChatMember, chat_id: int):
-    await bot.send_message(chat_id, f"👋 @{member.user.username} گروه رو ترک کرد!")
-
-# ============================================
-# ✅ دستورات ربات
-# ============================================
-async def handle_commands(message: Message):
-    chat_id = message.chat.id
-    text = message.content
-
-    if text == "/start":
-        await bot.send_message(chat_id, "👋 سلام! من ربات مدیریت گروه هستم.")
-
-    elif text == "/help":
+    # اگر پیام حاوی @ بود
+    if contains_mention(text):
+        # اخطار بده
         await bot.send_message(
             chat_id,
-            "🤖 **راهنما:**\n"
-            "✅ حذف خودکار لینک\n"
-            "✅ حذف خودکار فحش\n"
-            "✅ جلوگیری از اسپم\n"
-            "✅ خوش‌آمدگویی و خداحافظی\n"
-            "✅ دستور /start"
+            f"@{message.author.username} ❌ ارسال آیدی دیگران در گروه ممنوع است!"
         )
 
+        # بررسی کن که آیا کاربر ادمین است یا نه
+        admins = await bot.get_chat_administrators(chat_id)
+        is_admin = any(admin.user.id == user_id for admin in admins)
+
+        # اگر ادمین نبود، ریموو کن
+        if not is_admin:
+            await bot.ban_chat_member(chat_id, user_id)
+            await asyncio.sleep(1)
+            await bot.unban_chat_member(chat_id, user_id)
+            await bot.send_message(
+                chat_id,
+                f"🚫 کاربر {message.author.username} به دلیل ارسال آیدی، از گروه حذف شد."
+            )
+
+# =============================================
+# اجرای ربات
+# =============================================
 if __name__ == "__main__":
     print("ربات در حال اجراست...")
     bot.run()
